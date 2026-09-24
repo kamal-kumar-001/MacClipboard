@@ -21,7 +21,7 @@ MacClipboard is an open-source macOS menu-bar clipboard history app. It keeps re
 
 ## Download and install the DMG
 
-Download the latest installer here: [Download MacClipboard.dmg](.build/release/MacClipboard.dmg)
+Download the latest installer here: [Download MacClipboard.dmg](MacClipboard.dmg)
 
 For a public GitHub release, upload that file to the repository's **Releases** page and share the release download URL.
 
@@ -45,6 +45,7 @@ The script creates:
 
 - `.build/release/MacClipboard.app`
 - `.build/release/MacClipboard.dmg`
+- `MacClipboard.dmg` for sharing or downloading
 
 The app bundle is also opened automatically after a successful build. To install it manually:
 

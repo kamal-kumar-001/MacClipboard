@@ -6,6 +6,7 @@ APP_NAME="MacClipboard"
 BUILD_DIR=".build/release"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
 DMG_PATH="$BUILD_DIR/$APP_NAME.dmg"
+SHAREABLE_DMG="$PWD/$APP_NAME.dmg"
 
 echo "Building $APP_NAME..."
 
@@ -117,6 +118,10 @@ if command -v hdiutil >/dev/null 2>&1; then
         -format UDZO \
         "$DMG_PATH" >/dev/null
 
+    cp "$DMG_PATH" "$SHAREABLE_DMG"
+
     echo "DMG created:"
     echo "$DMG_PATH"
+    echo "Shareable download:"
+    echo "$SHAREABLE_DMG"
 fi
