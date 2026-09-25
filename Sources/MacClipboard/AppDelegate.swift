@@ -1,38 +1,28 @@
 import AppKit
 import SwiftUI
 import Carbon.HIToolbox
+import ApplicationServices
 
 @MainActor(unsafe)
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private var statusItem: NSStatusItem!
-
     private var popover: NSPopover!
-
     private var monitor: ClipboardMonitor!
-
     private var hotKeyRef: EventHotKeyRef?
-
     private var eventHandlerRef: EventHandlerRef?
+    private var anchorWindow: AnchorWindow?
+    private var previousApp: NSRunningApplication?
 
-    private let store =
-        ClipboardStore.shared
+    private let store = ClipboardStore.shared
 
-    func applicationDidFinishLaunching(
-        _ notification: Notification
-    ) {
-
+    func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
 
-        monitor =
-            ClipboardMonitor(
-                store: store
-            )
+        monitor = ClipboardMonitor(store: store)
 
         setupPopover()
-
         setupGlobalShortcut()
-
         monitor.start()
     }
 
@@ -52,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 .takeUnretainedValue()
 
             Task { @MainActor in
-                delegate.togglePopover()
+                delegate.togglePopover(fromMenuBar: false)
             }
 
             return noErr
@@ -83,113 +73,142 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupMenuBar() {
+        statusItem = NSStatusBar.system.statusItem(
+            withLength: NSStatusItem.squareLength
+        )
 
-        statusItem =
-            NSStatusBar.system.statusItem(
-                withLength: NSStatusItem.squareLength
-            )
-
-        guard
-            let button = statusItem.button
-        else {
+        guard let button = statusItem.button else {
             return
         }
 
-        button.image =
-            NSImage(
-                systemSymbolName:
-                    "doc.on.clipboard",
-                accessibilityDescription:
-                    "Clipboard"
-            )
-
+        button.image = NSImage(
+            systemSymbolName: "doc.on.clipboard",
+            accessibilityDescription: "Clipboard"
+        )
         button.image?.isTemplate = true
-
-        button.action =
-            #selector(togglePopover)
-
+        button.action = #selector(menuBarButtonClicked)
         button.target = self
     }
 
     private func setupPopover() {
+        popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+        popover.contentSize = NSSize(width: 360, height: 470)
 
-        popover =
-            NSPopover()
+        let contentView = ClipboardPopover(
+            onClose: { [weak self] in
+                self?.closePopover()
+            },
+            onCopyAndPaste: { [weak self] item, pasteImmediately in
+                self?.handleItemSelection(item, pasteImmediately: pasteImmediately)
+            },
+            onQuit: {
+                NSApplication.shared.terminate(nil)
+            }
+        )
 
-        popover.behavior =
-            .transient
-
-        popover.animates =
-            true
-
-        popover.contentSize =
-            NSSize(
-                width: 380,
-                height: 520
-            )
-
-        let contentView =
-            ClipboardPopover(
-                onClose: { [weak self] in
-                    self?.closePopover()
-                },
-                onCopy: { [weak self] in
-                    self?.monitor.ignoreNextClipboardChange()
-                },
-                onQuit: {
-                    NSApplication.shared.terminate(nil)
-                }
-            )
-
-        popover.contentViewController =
-            NSHostingController(
-                rootView: contentView
-            )
+        popover.contentViewController = NSHostingController(
+            rootView: contentView
+        )
     }
 
     @objc
-    private func togglePopover() {
+    private func menuBarButtonClicked() {
+        togglePopover(fromMenuBar: true)
+    }
 
-        guard
-            let button = statusItem.button
-        else {
+    @objc
+    func togglePopover(fromMenuBar: Bool = false) {
+        if popover.isShown {
+            closePopover()
             return
         }
 
-        if popover.isShown {
+        // Store previously focused app so we can return focus and paste into it
+        previousApp = NSWorkspace.shared.frontmostApplication
 
-            popover.performClose(nil)
-
-        } else {
-
+        if fromMenuBar, let button = statusItem.button {
             popover.show(
                 relativeTo: button.bounds,
                 of: button,
                 preferredEdge: .minY
             )
+        } else {
+            let anchor = CaretLocator.findBestAnchor()
+            let window = AnchorWindow(targetRect: anchor.rect)
+            window.orderFront(nil)
+            self.anchorWindow = window
 
-            popover.contentViewController?
-                .view
-                .window?
-                .becomeKey()
+            guard let contentView = window.contentView else { return }
 
+            popover.show(
+                relativeTo: contentView.bounds,
+                of: contentView,
+                preferredEdge: .minY
+            )
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        popover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func handleItemSelection(_ item: ClipboardItem, pasteImmediately: Bool) {
+        monitor.ignoreNextClipboardChange()
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+
+        let pasteboardItem = NSPasteboardItem()
+        for (typeString, data) in item.representations {
+            let type = NSPasteboard.PasteboardType(typeString)
+            pasteboardItem.setData(data, forType: type)
+        }
+        pasteboard.writeObjects([pasteboardItem])
+
+        // 1. Close popover
+        popover.performClose(nil)
+
+        // 2. Reactivate the previous application where user was typing
+        let targetApp = previousApp
+        targetApp?.activate(options: .activateIgnoringOtherApps)
+
+        // 3. Automatically paste at input
+        if pasteImmediately {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                Self.simulatePaste()
+            }
         }
     }
 
-    @objc
-    private func quit() {
-        NSApplication.shared.terminate(nil)
+    private static func simulatePaste() {
+        guard let src = CGEventSource(stateID: .hidSystemState) else { return }
+        let vKeyCode = CGKeyCode(kVK_ANSI_V)
+        guard let keyDown = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: false) else { return }
+        keyDown.flags = .maskCommand
+        keyUp.flags = .maskCommand
+
+        keyDown.post(tap: .cghidEventTap)
+        usleep(25000) // 25ms hold duration to ensure target app processes key event
+        keyUp.post(tap: .cghidEventTap)
     }
 
     private func closePopover() {
-
         popover.performClose(nil)
+        previousApp?.activate(options: .activateIgnoringOtherApps)
     }
 
-    func applicationWillTerminate(
-        _ notification: Notification
-    ) {
+    // MARK: - NSPopoverDelegate
 
+    func popoverDidClose(_ notification: Notification) {
+        anchorWindow?.orderOut(nil)
+        anchorWindow = nil
+        previousApp?.activate(options: .activateIgnoringOtherApps)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
         if let hotKeyRef {
             UnregisterEventHotKey(hotKeyRef)
         }

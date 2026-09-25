@@ -19,6 +19,7 @@ if [[ "$DEVELOPER_DIR_PATH" == */Xcode.app/Contents/Developer ]]; then
 else
     echo "Full Xcode is not selected; compiling with Command Line Tools..."
     swiftc \
+        -module-cache-path .build/module-cache \
         Sources/MacClipboard/*.swift \
         Sources/MacClipboard/Models/*.swift \
         Sources/MacClipboard/Services/*.swift \
@@ -27,7 +28,9 @@ else
         -o "$BUILD_DIR/$APP_NAME" \
         -framework AppKit \
         -framework SwiftUI \
-        -framework CryptoKit
+        -framework CryptoKit \
+        -framework ApplicationServices \
+        -framework Carbon
 fi
 
 echo "Creating app bundle..."
@@ -41,7 +44,9 @@ ICONSET_DIR=".build/MacClipboard.iconset"
 rm -rf "$ICONSET_DIR"
 mkdir -p "$ICONSET_DIR"
 
-swiftc Scripts/create-app-icon.swift \
+swiftc \
+    -module-cache-path .build/module-cache \
+    Scripts/create-app-icon.swift \
     -o .build/create-app-icon \
     -framework AppKit \
     -framework ImageIO
@@ -101,7 +106,7 @@ echo ""
 
 echo "Opening app..."
 
-open "$APP_DIR"
+open "$APP_DIR" 2>/dev/null || true
 
 if command -v hdiutil >/dev/null 2>&1; then
     rm -f "$DMG_PATH"

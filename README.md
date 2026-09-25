@@ -1,23 +1,38 @@
 # MacClipboard
 
-MacClipboard is an open-source macOS menu-bar clipboard history app. It keeps recent clipboard items available in a Spotlight-style popover and supports text, rich text, HTML, URLs, and images.
+MacClipboard is an open-source macOS clipboard history app designed with an Android-style quick-paste workflow. It opens right at your active text cursor / caret (or mouse position) in any editor or app with an arrow notch pointing to where you type, complete with an instant search bar, category navigation, and one-key paste shortcuts.
 
 ## Features
 
-- Clipboard history with up to 10 recent items
-- Image previews
-- Text, rich-text, HTML, URL, and image detection
-- Relative timestamps such as `just now` and `2 minutes ago`
-- Click an item to restore it to the clipboard
-- `Command-Option-V` global shortcut to open the clipboard popover
-- Menu-bar utility with no Dock icon
-- Local history storage in Application Support
+- **Context-Aware Popover**: Opens right at your active text cursor / caret (with mouse cursor fallback) with an arrow notch pointing directly to your typing location.
+- **Android-Style One-Key Paste**: Press `1` through `9` or `0` to instantly paste the corresponding entry into your active text input without any modifier keys.
+- **Click to Auto-Paste**: Click any entry to automatically copy and paste it into whatever application you are working in.
+- **Instant Search**: Filter clipboard history in real time by typing in the search bar.
+- **Keyboard Navigation**:
+  - `↑` / `↓` arrow keys with prominent high-contrast highlight.
+  - `Return` / `Enter` to paste the selected item (`Option-Return` to copy to clipboard only).
+  - `1` – `9` and `0` for instant item selection and paste.
+  - `Escape` dismisses the popover and restores focus directly back to your text input.
+- **Category Navigation Bar**: Quickly filter between All, Text & Code, Links, and Images using the bottom bar.
+- **Clipboard History**: Tracks recent items with rich previews, URL detection, code snippet formatting, and image thumbnails.
+- **Menu-Bar Utility**: Lightweight background utility (`Command-Option-V` global hotkey or menu-bar icon click).
+- **Privacy First**: History is stored locally on your machine in Application Support.
 
 ## Requirements
 
 - macOS 12 or newer
 - Apple Silicon or Intel Mac
 - Xcode Command Line Tools for building from source
+
+## Accessibility Permission
+
+To enable MacClipboard to position itself right at your text cursor in other apps (such as VS Code, Xcode, Notes, TextEdit, or browsers) and automatically paste (`⌘V`), grant it Accessibility permission:
+
+1. Open **System Settings**.
+2. Navigate to **Privacy & Security > Accessibility**.
+3. Toggle **MacClipboard** ON (or click `+` and add `MacClipboard.app` from `/Applications`).
+
+> If Accessibility is not enabled, the popover will fall back to opening at your mouse cursor and will copy items to the clipboard for manual pasting.
 
 ## Download and install the DMG
 
@@ -47,24 +62,28 @@ The script creates:
 - `.build/release/MacClipboard.dmg`
 - `MacClipboard.dmg` for sharing or downloading
 
-The app bundle is also opened automatically after a successful build. To install it manually:
+To install it manually:
 
 ```bash
 cp -R .build/release/MacClipboard.app /Applications/
 open /Applications/MacClipboard.app
 ```
 
-The script uses Swift Package Manager when full Xcode is selected. On machines with only Command Line Tools, it uses `swiftc` directly.
-
 ## Usage
 
-- Click the clipboard icon in the menu bar, or press `Command-Option-V`.
-- Click an item to restore it to the system clipboard.
-- Hover over an item and click the x button to remove it.
-- Use **Clear All** to remove the saved history.
-- Click the power button in the popover footer to quit MacClipboard.
-
-The global shortcut works while MacClipboard is running.
+- Press `Command-Option-V` anywhere to open the clipboard popover right at your text cursor.
+- You can also click the clipboard icon in the menu bar.
+- Press **`1` through `9`** to paste entries #1 through #9 instantly.
+- Press **`0`** to paste entry #10 instantly.
+- Click any entry to automatically paste it at your cursor.
+- Type in the **Search** field to filter clipboard history in real time.
+- Press `↑` / `↓` arrow keys to navigate entries, then press `Return` to paste.
+- Press `Option-Return` to copy to clipboard without auto-pasting.
+- Press `Escape` or click outside to dismiss the popover and return focus to your input.
+- Switch between categories (All, Text, Links, Images) using the bottom bar icons.
+- Hover over an item and click the `x` button to delete it from history.
+- Use the **trash** button in the bottom bar to clear all history.
+- Click the **power** button in the bottom bar to quit MacClipboard.
 
 ## Start automatically at login
 
@@ -89,5 +108,3 @@ The current version does not encrypt this file and does not upload clipboard con
 ## Open source
 
 MacClipboard is open source. Contributions, bug reports, and feature requests are welcome through the project's issue tracker and pull requests.
-
-Before publishing a release for general distribution, configure an Apple Developer signing identity, notarization, a stable bundle identifier, and a custom app icon.
