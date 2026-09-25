@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MacClipboard — Android-Style Floating Clipboard Manager for macOS</title>
+  <meta name="description" content="Open-source macOS clipboard history app. Opens right at your active text cursor with instant one-key paste (1-9, 0), real-time search, and category filters.">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="MacClipboard — Floating Clipboard for macOS">
+  <meta property="og:description" content="Pops up at your text cursor. Android-style 1-9 quick paste, instant search, and zero friction.">
+  <meta property="og:image" content="assets/icon.png">
+  <meta property="og:type" content="website">
+
+  <style>
+    :root {
+      --bg: #0b0d13;
+      --bg-surface: #141824;
+      --bg-card: #1c2233;
+      --bg-card-hover: #242c42;
+      --accent: #2979ff;
+      --accent-glow: rgba(41, 121, 255, 0.35);
+      --accent-secondary: #00d2ff;
+      --text: #f0f4fc;
+      --text-muted: #8e9bb5;
+      --text-dim: #5c6780;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(41, 121, 255, 0.4);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background gradient glow */
+    .ambient-glow {
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(41, 121, 255, 0.18) 0%, rgba(0, 210, 255, 0.05) 50%, transparent 80%);
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Navigation Bar */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(11, 13, 19, 0.75);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-container {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+
+    .brand img {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(41, 121, 255, 0.3);
+    }
+
+    .brand-badge {
+      font-size: 0.7rem;
+      background: rgba(41, 121, 255, 0.15);
+      color: var(--accent-secondary);
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(41, 121, 255, 0.3);
+      font-weight: 600;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-github {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-github:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-download-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #2979ff, #00b0ff);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 4px 14px var(--accent-glow);
+      transition: all 0.2s ease;
+    }
+
+    .btn-download-nav:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px var(--accent-glow);
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 70px 24px 40px;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .pill-badge span.dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #00e676;
+      box-shadow: 0 0 8px #00e676;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #ffffff 30%, #82b1ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p.lead {
+      max-width: 680px;
+      margin: 0 auto 36px;
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .hero-cta {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .btn-primary-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #2979ff, #0091ea);
+      color: #fff;
+      padding: 16px 28px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 8px 24px var(--accent-glow);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-primary-hero:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(41, 121, 255, 0.5);
+    }
+
+    .btn-secondary-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary-hero:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .hero-meta {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    /* Interactive Demo Sandbox */
+    .demo-section {
+      max-width: 1060px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+    }
+
+    .demo-wrapper {
+      position: relative;
+      background: #11141c;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+    }
+
+    .window-header {
+      background: #161a24;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .window-traffic {
+      display: flex;
+      gap: 8px;
+    }
+
+    .traffic-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .traffic-close { background: #ff5f56; }
+    .traffic-min { background: #ffbd2e; }
+    .traffic-max { background: #27c93f; }
+
+    .window-title {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .demo-stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr;
+      min-height: 520px;
+      background: #0d1017;
+      padding: 30px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+    }
+
+    .code-editor {
+      color: #99aab5;
+      line-height: 1.8;
+      user-select: none;
+    }
+
+    .code-line {
+      display: flex;
+      gap: 18px;
+    }
+
+    .line-no {
+      color: #3b4252;
+      width: 24px;
+      text-align: right;
+    }
+
+    .line-code {
+      color: #c0caf5;
+    }
+
+    .code-keyword { color: #bb9af7; }
+    .code-type { color: #7aa2f7; }
+    .code-var { color: #7dcfff; }
+    .code-comment { color: #565f89; font-style: italic; }
+
+    .caret-marker {
+      display: inline-block;
+      width: 2px;
+      height: 1.2em;
+      background: #2979ff;
+      vertical-align: text-bottom;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Popover Simulator */
+    .popover-sim {
+      position: absolute;
+      top: 130px;
+      left: 140px;
+      width: 360px;
+      background: rgba(22, 26, 38, 0.94);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      z-index: 10;
+      animation: popoverFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popoverFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Pointer Notch */
+    .popover-notch {
+      position: absolute;
+      top: -9px;
+      left: 36px;
+      width: 18px;
+      height: 9px;
+      overflow: hidden;
+    }
+
+    .popover-notch::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      background: #161a26;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transform: rotate(45deg);
+    }
+
+    .sim-search-bar {
+      padding: 12px 14px 8px;
+    }
+
+    .sim-input-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(41, 121, 255, 0.4);
+      border-radius: 8px;
+      padding: 7px 10px;
+    }
+
+    .sim-input-box input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 0.82rem;
+      font-family: var(--font);
+      width: 100%;
+    }
+
+    .sim-input-box svg {
+      width: 14px;
+      height: 14px;
+      fill: #8e9bb5;
+    }
+
+    .sim-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 16px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #657494;
+      letter-spacing: 0.04em;
+    }
+
+    .sim-items-list {
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 4px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .sim-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      user-select: none;
+    }
+
+    .sim-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .sim-item.selected {
+      background: #2979ff !important;
+      color: #fff !important;
+    }
+
+    .sim-item-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 19px;
+      height: 19px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #8e9bb5;
+      font-family: var(--font);
+    }
+
+    .sim-item.selected .sim-item-badge {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+    }
+
+    .sim-item-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .icon-text { background: rgba(41, 121, 255, 0.15); color: #2979ff; }
+    .icon-code { background: rgba(255, 145, 0, 0.15); color: #ff9100; }
+    .icon-link { background: rgba(179, 136, 255, 0.15); color: #b388ff; }
+    .icon-img { background: rgba(0, 230, 118, 0.15); color: #00e676; }
+
+    .sim-item.selected .sim-item-icon {
+      background: rgba(255, 255, 255, 0.2) !important;
+      color: #fff !important;
+    }
+
+    .sim-item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sim-item-title {
+      font-size: 0.8rem;
+      font-family: var(--font);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #e2e8f0;
+    }
+
+    .sim-item.selected .sim-item-title {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .sim-item-meta {
+      font-size: 0.65rem;
+      color: #64748b;
+      display: flex;
+      gap: 6px;
+      font-family: var(--font);
+    }
+
+    .sim-item.selected .sim-item-meta {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .sim-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .sim-categories {
+      display: flex;
+      gap: 8px;
+    }
+
+    .sim-cat-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      transition: all 0.15s ease;
+    }
+
+    .sim-cat-btn.active {
+      border: 1.5px solid #2979ff;
+      color: #2979ff;
+    }
+
+    /* Paste toast animation */
+    .paste-toast {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #00e676;
+      color: #0b0d13;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 8px 20px rgba(0, 230, 118, 0.3);
+      z-index: 20;
+    }
+
+    .paste-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Features Section */
+    .section-container {
+      max-width: 1160px;
+      margin: 80px auto;
+      padding: 0 24px;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 50px;
+    }
+
+    .section-header h2 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon-wrapper {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(41, 121, 255, 0.12);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* Shortcuts Section */
+    .shortcuts-wrapper {
+      background: linear-gradient(180deg, #141824 0%, #10131d 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      margin-top: 40px;
+    }
+
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .shortcut-label {
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .kbd-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    kbd {
+      background: #252b3d;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+      color: #f0f4fc;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 3px 8px;
+    }
+
+    /* Installation Section */
+    .install-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+    }
+
+    .install-col h3 {
+      font-size: 1.25rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .install-col p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-bottom: 20px;
+    }
+
+    .code-snippet {
+      background: #0d1017;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #7dcfff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      color: var(--text);
+    }
+
+    /* Post-Installation Setup Guides */
+    .setup-guide-wrapper {
+      margin-top: 36px;
+    }
+
+    .setup-guide-header {
+      margin-bottom: 20px;
+    }
+
+    .setup-guide-header h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .setup-guide-header p {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+    }
+
+    .setup-guide-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .setup-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .setup-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      background: var(--bg-card-hover);
+    }
+
+    .setup-card-top {
+      margin-bottom: 18px;
+    }
+
+    .setup-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .setup-card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .setup-card-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-required {
+      background: rgba(255, 171, 0, 0.15);
+      color: #ffab00;
+      border: 1px solid rgba(255, 171, 0, 0.35);
+    }
+
+    .badge-recommended {
+      background: rgba(0, 230, 118, 0.15);
+      color: #00e676;
+      border: 1px solid rgba(0, 230, 118, 0.35);
+    }
+
+    .setup-card-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .setup-steps-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .setup-step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.86rem;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .step-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      border-radius: 50%;
+      background: rgba(41, 121, 255, 0.2);
+      color: var(--accent-secondary);
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 50px 24px 30px;
+      background: #090b10;
+      margin-top: 100px;
+    }
+
+    .footer-container {
+      max-width: 1160px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-left p {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      transition: color 0.15s;
+    }
+
+    .footer-links a:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 860px) {
+      .install-box,
+      .setup-guide-grid {
+        grid-template-columns: 1fr;
+      }
+      .popover-sim {
+        left: 20px;
+        width: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <img src="assets/icon.png" alt="MacClipboard Logo">
+        <span>MacClipboard</span>
+        <span class="brand-badge">v1.0.0</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#demo">Live Demo</a></li>
+        <li><a href="#shortcuts">Shortcuts</a></li>
+        <li><a href="#install">Install</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="https://github.com/kamal-kumar-001/MacClipboard" target="_blank" class="btn-github">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>Star</span>
+        </a>
+
+        <a href="MacClipboard.dmg" download class="btn-download-nav">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          <span>Download DMG</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main>
+    <section class="hero">
+      <div class="pill-badge">
+        <span class="dot"></span>
+        <span>macOS 12+ Monterey, Ventura, Sonoma & Sequoia</span>
+      </div>
+
+      <h1>
+        The Android-Style Clipboard<br>
+        <span class="gradient-text">Right At Your Text Cursor</span>
+      </h1>
+
+      <p class="lead">
+        MacClipboard eliminates the friction of moving your eyes to the menubar. Press <strong>Cmd-Opt-V</strong> anywhere to summon a floating popover pointing right to your text caret with instant <strong>1 to 9, 0</strong> one-key paste.
+      </p>
+
+      <div class="hero-cta">
+        <a href="MacClipboard.dmg" download class="btn-primary-hero">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          <span>Download MacClipboard.dmg</span>
+        </a>
+
+        <a href="https://github.com/kamal-kumar-001/MacClipboard" target="_blank" class="btn-secondary-hero">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>View on GitHub</span>
+        </a>
+      </div>
+
+      <div class="hero-meta">
+        Free & Open Source • Native Swift & SwiftUI • ~513 KB • Zero Tracking
+      </div>
+    </section>
+
+    <!-- Interactive Demo Sandbox -->
+    <section class="demo-section" id="demo">
+      <div class="demo-wrapper">
+        <div class="window-header">
+          <div class="window-traffic">
+            <span class="traffic-dot traffic-close"></span>
+            <span class="traffic-dot traffic-min"></span>
+            <span class="traffic-dot traffic-max"></span>
+          </div>
+          <div class="window-title">Solution.cpp — Visual Studio Code</div>
+          <div style="width: 50px;"></div>
+        </div>
+
+        <div class="demo-stage">
+          <div class="code-editor">
+            <div class="code-line"><span class="line-no">1</span><span class="line-code"><span class="code-keyword">#include</span> &lt;iostream&gt;</span></div>
+            <div class="code-line"><span class="line-no">2</span><span class="line-code"><span class="code-comment">/* Definition for singly-linked list */</span></span></div>
+            <div class="code-line"><span class="line-no">3</span><span class="line-code"><span class="code-keyword">struct</span> <span class="code-type">ListNode</span> {</span></div>
+            <div class="code-line"><span class="line-no">4</span><span class="line-code">&nbsp;&nbsp;<span class="code-type">int</span> <span class="code-var" id="paste-target">val;</span><span class="caret-marker"></span></span></div>
+            <div class="code-line"><span class="line-no">5</span><span class="line-code">&nbsp;&nbsp;<span class="code-type">ListNode</span> *next;</span></div>
+            <div class="code-line"><span class="line-no">6</span><span class="line-code">&nbsp;&nbsp;ListNode(<span class="code-type">int</span> x) : val(x), next(<span class="code-keyword">nullptr</span>) {}</span></div>
+            <div class="code-line"><span class="line-no">7</span><span class="line-code">};</span></div>
+            <div class="code-line"><span class="line-no">8</span><span class="line-code"></span></div>
+            <div class="code-line"><span class="line-no">9</span><span class="line-code"><span class="code-type">int</span> <span class="code-var">main</span>() {</span></div>
+            <div class="code-line"><span class="line-no">10</span><span class="line-code">&nbsp;&nbsp;<span class="code-comment">// Try pressing 1, 2, 3.. on the popover to paste!</span></span></div>
+            <div class="code-line"><span class="line-no">11</span><span class="line-code">}</span></div>
+          </div>
+
+          <!-- Popover Mockup -->
+          <div class="popover-sim">
+            <div class="popover-notch"></div>
+
+            <div class="sim-search-bar">
+              <div class="sim-input-box">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="demo-search" placeholder="Search (press 1-9 to paste)">
+              </div>
+            </div>
+
+            <div class="sim-header">
+              <span id="demo-section-title">RECENT COPIES</span>
+              <span id="demo-item-count">6 items</span>
+            </div>
+
+            <div class="sim-items-list" id="demo-items-list">
+              <!-- Rendered via JS -->
+            </div>
+
+            <div class="sim-footer">
+              <div class="sim-categories">
+                <div class="sim-cat-btn active" data-cat="all" title="All">🕒</div>
+                <div class="sim-cat-btn" data-cat="text" title="Text">📝</div>
+                <div class="sim-cat-btn" data-cat="link" title="Links">🔗</div>
+                <div class="sim-cat-btn" data-cat="image" title="Images">🖼️</div>
+              </div>
+              <div>1-9, 0 or ↵ to paste</div>
+            </div>
+          </div>
+
+          <div class="paste-toast" id="paste-toast">✨ Pasted into editor!</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section-container" id="features">
+      <div class="section-header">
+        <h2>Designed for Speed & Focus</h2>
+        <p>Built from the ground up to keep you in the zone while writing code, drafting emails, or organizing notes.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          </div>
+          <h3>Context-Aware Caret Anchoring</h3>
+          <p>Unlike traditional menubar utilities that hide in the top corner, MacClipboard pops up directly next to your text insertion point with a native pointer notch.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <h3>Android-Style One-Key Paste</h3>
+          <p>Press a single number key — <strong>1 through 9, or 0</strong> — to instantly paste that entry into your active editor without touching any modifier keys.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <h3>Instant Real-Time Search</h3>
+          <p>Start typing the moment the popover opens. Real-time filtering quickly narrows down text, URLs, and code snippets across your history.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/></svg>
+          </div>
+          <h3>Click to Auto-Paste</h3>
+          <p>Clicking any entry restores focus to your previous window and automatically executes a paste command, making mouse and trackpad interactions effortless.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <h3>100% Private & Offline</h3>
+          <p>No telemetry, no background servers, and no cloud syncing. All clipboard history is stored exclusively in your macOS Application Support folder.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h3>Native Swift & Ultra Lightweight</h3>
+          <p>Written natively in Swift with SwiftUI. Consumes under 25 MB of memory and zero CPU cycles when idle. Starts instantly and launches at login.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Keyboard Shortcuts Section -->
+    <section class="section-container" id="shortcuts">
+      <div class="shortcuts-wrapper">
+        <div class="section-header" style="margin-bottom: 20px;">
+          <h2>Keyboard Shortcuts</h2>
+          <p>Navigate and paste at the speed of thought without taking your hands off the keyboard.</p>
+        </div>
+
+        <div class="shortcuts-grid">
+          <div class="shortcut-item">
+            <span class="shortcut-label">Toggle Clipboard at Cursor</span>
+            <div class="kbd-group"><kbd>⌘</kbd><kbd>⌥</kbd><kbd>V</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Instant Paste Entries 1 to 9</span>
+            <div class="kbd-group"><kbd>1</kbd> .. <kbd>9</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Instant Paste Entry 10</span>
+            <div class="kbd-group"><kbd>0</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Navigate Up / Down</span>
+            <div class="kbd-group"><kbd>↑</kbd><kbd>↓</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Paste Highlighted Item</span>
+            <div class="kbd-group"><kbd>Return</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Copy without Pasting</span>
+            <div class="kbd-group"><kbd>⌥</kbd><kbd>Return</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Close & Return to Input</span>
+            <div class="kbd-group"><kbd>Esc</kbd></div>
+          </div>
+          <div class="shortcut-item">
+            <span class="shortcut-label">Search Filter</span>
+            <div class="kbd-group"><kbd>Type anywhere</kbd></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Installation & Setup -->
+    <section class="section-container" id="install">
+      <div class="section-header">
+        <h2>Download & Installation</h2>
+        <p>Get up and running in less than 30 seconds.</p>
+      </div>
+
+      <div class="install-box">
+        <div class="install-col">
+          <h3>📦 Prebuilt Installer (.DMG)</h3>
+          <p>Download the latest release and drag it into your Applications folder.</p>
+
+          <a href="MacClipboard.dmg" download class="btn-primary-hero" style="width: 100%; justify-content: center; margin-bottom: 16px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            <span>Download MacClipboard.dmg (~513 KB)</span>
+          </a>
+
+          <div style="font-size: 0.85rem; color: var(--text-dim);">
+            <strong>First Launch Note:</strong> Open the app from Finder, then choose <em>Open</em>. If blocked, open <em>System Settings > Privacy & Security</em> and select <em>Open Anyway</em>.
+          </div>
+        </div>
+
+        <div class="install-col">
+          <h3>🛠️ Build from Source</h3>
+          <p>Clone the repository and compile natively using Xcode Command Line Tools.</p>
+
+          <div class="code-snippet">
+            <span>git clone https://github.com/kamal-kumar-001/MacClipboard.git && cd MacClipboard && ./Scripts/build-app.sh</span>
+            <button class="copy-btn" onclick="navigator.clipboard.writeText('git clone https://github.com/kamal-kumar-001/MacClipboard.git && cd MacClipboard && ./Scripts/build-app.sh'); alert('Command copied to clipboard!')">📋</button>
+          </div>
+
+          <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted);">
+            <strong>Developer Note:</strong> Uses Swift Package Manager when full Xcode is selected, and <code>swiftc</code> directly when using Command Line Tools.
+          </div>
+        </div>
+      </div>
+
+      <!-- Essential macOS Setup Guides -->
+      <div class="setup-guide-wrapper">
+        <div class="setup-guide-header">
+          <h3>⚙️ Essential Setup (After Downloading)</h3>
+          <p>Follow these two quick steps to enable caret-anchored pasting and automatic startup on your Mac.</p>
+        </div>
+
+        <div class="setup-guide-grid">
+          <!-- Accessibility Card -->
+          <div class="setup-card">
+            <div class="setup-card-top">
+              <div class="setup-card-header">
+                <div class="setup-card-title">
+                  <span>🔐 Accessibility Permission</span>
+                </div>
+                <span class="setup-card-badge badge-required">Required</span>
+              </div>
+              <p class="setup-card-desc">
+                Required by macOS so MacClipboard can detect your active text insertion caret across other apps (VS Code, Xcode, Notes, TextEdit, Browsers) and simulate <strong>⌘V</strong> to paste at your cursor.
+              </p>
+            </div>
+
+            <ul class="setup-steps-list">
+              <li class="setup-step-item">
+                <span class="step-number">1</span>
+                <span>Open <strong>System Settings</strong> on your Mac.</span>
+              </li>
+              <li class="setup-step-item">
+                <span class="step-number">2</span>
+                <span>Navigate to <strong>Privacy &amp; Security</strong> → <strong>Accessibility</strong>.</span>
+              </li>
+              <li class="setup-step-item">
+                <span class="step-number">3</span>
+                <span>Toggle <strong>MacClipboard</strong> <span style="color: #00e676; font-weight: 600;">ON</span> (or click <strong>+</strong> and select <code>MacClipboard.app</code> from Applications).</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Open at Login Card -->
+          <div class="setup-card">
+            <div class="setup-card-top">
+              <div class="setup-card-header">
+                <div class="setup-card-title">
+                  <span>🚀 Start Automatically at Login</span>
+                </div>
+                <span class="setup-card-badge badge-recommended">Recommended</span>
+              </div>
+              <p class="setup-card-desc">
+                Keeps MacClipboard running quietly in the background so <strong>Command-Option-V</strong> is always ready to use immediately whenever you log into your Mac.
+              </p>
+            </div>
+
+            <ul class="setup-steps-list">
+              <li class="setup-step-item">
+                <span class="step-number">1</span>
+                <span>Open <strong>System Settings</strong> → <strong>General</strong>.</span>
+              </li>
+              <li class="setup-step-item">
+                <span class="step-number">2</span>
+                <span>Click on <strong>Login Items &amp; Extensions</strong> (or <em>Login Items</em>).</span>
+              </li>
+              <li class="setup-step-item">
+                <span class="step-number">3</span>
+                <span>Under <strong>Open at Login</strong>, click the <strong>+</strong> button.</span>
+              </li>
+              <li class="setup-step-item">
+                <span class="step-number">4</span>
+                <span>Choose <strong>MacClipboard</strong> from your Applications folder and click <strong>Open</strong>.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-left">
+        <img src="assets/icon.png" width="24" height="24" alt="MacClipboard" style="border-radius: 6px;">
+        <p>MacClipboard is open-source software crafted with Swift & SwiftUI.</p>
+      </div>
+
+      <ul class="footer-links">
+        <li><a href="https://github.com/kamal-kumar-001/MacClipboard" target="_blank">GitHub</a></li>
+        <li><a href="https://github.com/kamal-kumar-001/MacClipboard/releases" target="_blank">Releases</a></li>
+        <li><a href="https://github.com/kamal-kumar-001/MacClipboard/issues" target="_blank">Issues</a></li>
+        <li><a href="MacClipboard.dmg" download>Download DMG</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- Interactive Demo Script -->
+  <script>
+    const sampleItems = [
+      { id: 1, type: "code", icon: "icon-code", iconSymbol: "{}", title: "ListNode* next = head->next;", typeName: "CODE", time: "just now" },
+      { id: 2, type: "link", icon: "icon-link", iconSymbol: "🔗", title: "https://github.com/kamal-kumar-001/MacClipboard", typeName: "URL", time: "1m ago" },
+      { id: 3, type: "text", icon: "icon-text", iconSymbol: "📄", title: "git commit -m 'feat: cursor popover'", typeName: "TEXT", time: "3m ago" },
+      { id: 4, type: "text", icon: "icon-text", iconSymbol: "📄", title: "Quick-paste 1-9 shortcuts like Android", typeName: "TEXT", time: "5m ago" },
+      { id: 5, type: "image", icon: "icon-img", iconSymbol: "🖼️", title: "App Screenshot Preview.png", typeName: "IMAGE", time: "12m ago" },
+      { id: 6, type: "code", icon: "icon-code", iconSymbol: "{}", title: "swiftc Sources/MacClipboard/*.swift", typeName: "CODE", time: "18m ago" }
+    ];
+
+    let currentCategory = "all";
+    let selectedIdx = 0;
+
+    function renderDemoItems() {
+      const query = document.getElementById("demo-search").value.toLowerCase();
+      const listEl = document.getElementById("demo-items-list");
+      listEl.innerHTML = "";
+
+      const filtered = sampleItems.filter(item => {
+        const matchesCat = currentCategory === "all" || item.type === currentCategory;
+        const matchesQuery = !query || item.title.toLowerCase().includes(query);
+        return matchesCat && matchesQuery;
+      });
+
+      document.getElementById("demo-item-count").textContent = `${filtered.length} items`;
+
+      filtered.forEach((item, idx) => {
+        const itemEl = document.createElement("div");
+        itemEl.className = `sim-item ${idx === selectedIdx ? 'selected' : ''}`;
+        
+        const badgeNum = idx < 9 ? (idx + 1) : (idx === 9 ? 0 : "");
+
+        itemEl.innerHTML = `
+          <div class="sim-item-badge">${badgeNum}</div>
+          <div class="sim-item-icon ${item.icon}">${item.iconSymbol}</div>
+          <div class="sim-item-content">
+            <div class="sim-item-title">${item.title}</div>
+            <div class="sim-item-meta">
+              <span>${item.typeName}</span>
+              <span>•</span>
+              <span>${item.time}</span>
+            </div>
+          </div>
+        `;
+
+        itemEl.addEventListener("click", () => {
+          selectedIdx = idx;
+          triggerPaste(item.title);
+          renderDemoItems();
+        });
+
+        listEl.appendChild(itemEl);
+      });
+    }
+
+    function triggerPaste(text) {
+      const target = document.getElementById("paste-target");
+      target.textContent = text;
+      
+      const toast = document.getElementById("paste-toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1500);
+    }
+
+    // Search filter input
+    document.getElementById("demo-search").addEventListener("input", () => {
+      selectedIdx = 0;
+      renderDemoItems();
+    });
+
+    // Keyboard navigation in demo
+    document.addEventListener("keydown", (e) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl.tagName === "INPUT";
+
+      // If user presses 1-6
+      if (['1','2','3','4','5','6'].includes(e.key) && !isInput) {
+        const idx = parseInt(e.key) - 1;
+        if (sampleItems[idx]) {
+          selectedIdx = idx;
+          triggerPaste(sampleItems[idx].title);
+          renderDemoItems();
+        }
+      }
+    });
+
+    // Category buttons
+    document.querySelectorAll(".sim-cat-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".sim-cat-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCategory = btn.getAttribute("data-cat");
+        selectedIdx = 0;
+        renderDemoItems();
+      });
+    });
+
+    renderDemoItems();
+  </script>
+</body>
+</html>
