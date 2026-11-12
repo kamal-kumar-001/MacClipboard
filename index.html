@@ -1116,6 +1116,26 @@
     @keyframes popoverFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
     .popover-sim { animation: popoverFloat 6s ease-in-out infinite; }
     @media (prefers-reduced-motion: reduce) { .hero .pill-badge, .hero h1, .hero .lead, .hero .hero-cta, .hero .hero-meta, .popover-sim { animation: none; } }
+
+    /* Split hero: copy at left, clipboard illustration at right. */
+    .hero { display: grid; grid-template-columns: 1.04fr 1fr; align-items: center; gap: 34px; padding-top: 66px; padding-bottom: 66px; text-align: left; }
+    .hero-copy { min-width: 0; }
+    .hero h1 { font-size: clamp(2.5rem, 3.9vw, 3.45rem); line-height: 1.09; letter-spacing: -0.045em; }
+    .hero p.lead { margin: 0 0 28px; font-size: 1.07rem; max-width: 500px; }
+    .hero-cta { justify-content: flex-start; gap: 12px; }
+    .hero .btn-primary-hero, .hero .btn-secondary-hero { padding: 13px 18px; font-size: .9rem; border-radius: 11px; }
+    .hero .pill-badge { font-size: .72rem; padding: 6px 10px; margin-bottom: 22px; }
+    .hero-meta { font-size: .73rem; line-height: 1.8; }
+    .clipboard-art { position: relative; min-width: 0; margin: 0 -16px 0 -8px; }
+    .clipboard-art svg { width: 100%; height: auto; display: block; overflow: visible; }
+    .art-float { animation: clipboardDrift 7s ease-in-out infinite; transform-origin: center; }
+    .art-float-late { animation-delay: -3s; }
+    @keyframes clipboardDrift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+    @media (max-width: 1000px) and (min-width: 861px) { .hero { gap: 10px; } .hero h1 { font-size: 2.7rem; } }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; padding-top: 44px; gap: 18px; max-width: 680px; } .hero h1 { font-size: clamp(2.3rem, 6.4vw, 3.4rem); } .clipboard-art { width: 100%; max-width: 520px; margin: 0 auto; } .hero p.lead { max-width: 570px; } }
+    @media (max-width: 520px) { .hero { padding: 36px 20px 30px; gap: 18px; } .hero h1 { font-size: 2.4rem; } .hero p.lead { font-size: 1rem; } .hero .pill-badge { font-size: .66rem; } .hero-cta { gap: 10px; } .hero .btn-primary-hero, .hero .btn-secondary-hero { width: auto; font-size: .78rem; padding: 12px 13px; gap: 7px; } .hero .btn-primary-hero svg, .hero .btn-secondary-hero svg { width: 16px; height: 16px; } .hero-meta { font-size: .68rem; } .clipboard-art { margin-top: 4px; } }
+    @media (max-width: 350px) { .hero h1 { font-size: 2.1rem; } .hero .btn-primary-hero, .hero .btn-secondary-hero { width: 100%; } }
+    @media (prefers-reduced-motion: reduce) { .art-float { animation: none; } }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1193,6 +1213,7 @@
   <!-- Hero Section -->
   <main>
     <section class="hero">
+      <div class="hero-copy">
       <div class="pill-badge">
         <span class="dot"></span>
         <span>macOS 12+ Monterey, Ventura, Sonoma & Sequoia</span>
@@ -1226,6 +1247,81 @@
       <div class="hero-meta">
         Free & Open Source • Native Swift & SwiftUI • ~513 KB • Zero Tracking
       </div>
+      </div>
+      <figure class="clipboard-art" role="img" aria-label="Clipboard illustration with a photo, rich-text document, link and code snippet, showing supported clipboard content.">
+        <svg viewBox="0 0 560 590" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="board" x1="160" y1="80" x2="440" y2="530" gradientUnits="userSpaceOnUse"><stop stop-color="#AFD4FF"/><stop offset=".45" stop-color="#5B9CF0"/><stop offset="1" stop-color="#2B6BD0"/></linearGradient>
+            <linearGradient id="clip" x1="230" y1="55" x2="310" y2="133" gradientUnits="userSpaceOnUse"><stop stop-color="#F7FAFF"/><stop offset=".45" stop-color="#D7E2F4"/><stop offset="1" stop-color="#A6B8D5"/></linearGradient>
+            <linearGradient id="sky" x1="60" y1="174" x2="210" y2="288" gradientUnits="userSpaceOnUse"><stop stop-color="#9ED8F1"/><stop offset="1" stop-color="#E8F5ED"/></linearGradient>
+            <radialGradient id="halo"><stop stop-color="#D9E9FF"/><stop offset="1" stop-color="#E9F1FF" stop-opacity="0"/></radialGradient>
+            <filter id="boardShadow" x="-50%" y="-30%" width="200%" height="190%"><feDropShadow dx="0" dy="28" stdDeviation="22" flood-color="#275698" flood-opacity=".2"/></filter>
+            <filter id="cardShadow" x="-40%" y="-40%" width="190%" height="200%"><feDropShadow dx="0" dy="13" stdDeviation="13" flood-color="#2B4D7E" flood-opacity=".14"/></filter>
+          </defs>
+          <ellipse cx="290" cy="302" rx="270" ry="280" fill="url(#halo)"/>
+          <ellipse cx="297" cy="540" rx="155" ry="15" fill="#B8CFED" opacity=".23"/>
+          <g transform="rotate(7 290 300)" filter="url(#boardShadow)">
+            <rect x="139" y="86" width="299" height="423" rx="31" fill="#2860B6"/>
+            <rect x="133" y="78" width="299" height="423" rx="31" fill="url(#board)" stroke="#C3DDFF" stroke-width="2"/>
+            <rect x="153" y="102" width="259" height="372" rx="17" fill="#FAFCFF"/>
+            <rect x="220" y="68" width="126" height="57" rx="13" fill="#7E9DC8"/>
+            <path d="M235 62H249C249 45 261 34 282 34C303 34 315 45 315 62H330C339 62 346 69 346 78V104C346 112 339 119 330 119H235C226 119 219 112 219 104V78C219 69 226 62 235 62Z" fill="url(#clip)" stroke="#FFFFFF" stroke-width="2"/>
+            <rect x="268" y="52" width="29" height="12" rx="6" fill="#6C8CB7"/>
+            <rect x="178" y="157" width="113" height="8" rx="4" fill="#C1D4EC"/>
+            <rect x="178" y="177" width="178" height="6" rx="3" fill="#E1EAF6"/>
+            <rect x="178" y="194" width="149" height="6" rx="3" fill="#E1EAF6"/>
+            <rect x="178" y="219" width="208" height="1" fill="#E5EDF7"/>
+            <rect x="178" y="253" width="35" height="35" rx="9" fill="#EBF3FF"/>
+            <path d="M188 268L194 274L204 263" stroke="#367EDA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="225" y="258" width="130" height="7" rx="3.5" fill="#CDDCF0"/>
+            <rect x="225" y="276" width="91" height="5" rx="2.5" fill="#E1EAF6"/>
+            <rect x="178" y="310" width="35" height="35" rx="9" fill="#EBF3FF"/>
+            <path d="M188 325L194 331L204 320" stroke="#367EDA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="225" y="315" width="114" height="7" rx="3.5" fill="#CDDCF0"/>
+            <rect x="225" y="333" width="139" height="5" rx="2.5" fill="#E1EAF6"/>
+            <rect x="178" y="367" width="208" height="1" fill="#E5EDF7"/>
+            <text x="178" y="405" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" letter-spacing="2" fill="#7E97B9">RECENT COPIES</text>
+            <rect x="178" y="425" width="82" height="7" rx="3.5" fill="#C9DAEF"/>
+          </g>
+          <g class="art-float">
+            <g transform="rotate(-10 123 248)" filter="url(#cardShadow)">
+              <rect x="23" y="157" width="193" height="174" rx="17" fill="white" stroke="#DFE8F4"/>
+              <rect x="35" y="169" width="169" height="118" rx="9" fill="url(#sky)"/>
+              <circle cx="167" cy="194" r="16" fill="#FFF5C7"/>
+              <path d="M35 256L91 205L151 268L180 239L204 261V279Q204 287 196 287H43Q35 287 35 279Z" fill="#5D9B9B"/>
+              <path d="M35 274L102 242L157 281L204 263V279Q204 287 196 287H43Q35 287 35 279Z" fill="#357478"/>
+              <text x="41" y="313" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="#4D6382">Photos</text>
+              <circle cx="185" cy="307" r="10" fill="#EDF5FF"/><path d="M181 307L184 310L189 304" stroke="#4585D9" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+          </g>
+          <g class="art-float art-float-late">
+            <g transform="rotate(10 433 342)" filter="url(#cardShadow)">
+              <path d="M370 229H460L501 270V408Q501 422 487 422H370Q356 422 356 408V243Q356 229 370 229Z" fill="white" stroke="#DCE6F4"/>
+              <path d="M460 230V260Q460 271 471 271H500" fill="#E5EEFC"/>
+              <rect x="375" y="255" width="33" height="34" rx="8" fill="#EAF1FF"/>
+              <text x="383" y="279" font-family="Georgia, serif" font-size="25" fill="#3D78CA">T</text>
+              <rect x="375" y="313" width="105" height="6" rx="3" fill="#B8CCE6"/>
+              <rect x="375" y="329" width="89" height="5" rx="2.5" fill="#E0E9F5"/>
+              <rect x="375" y="344" width="105" height="5" rx="2.5" fill="#E0E9F5"/>
+              <rect x="375" y="359" width="65" height="5" rx="2.5" fill="#E0E9F5"/>
+              <text x="375" y="398" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="#4D6382">Rich text</text>
+            </g>
+          </g>
+          <g transform="rotate(-5 137 455)" filter="url(#cardShadow)">
+            <rect x="40" y="423" width="201" height="59" rx="15" fill="white" stroke="#DDE7F5"/>
+            <rect x="53" y="436" width="33" height="33" rx="9" fill="#EBF2FF"/>
+            <path d="M66 451L72 445Q77 440 81 445Q85 449 80 454L75 459M71 453L65 459Q60 464 56 459Q52 455 57 450L62 445" stroke="#5187D0" stroke-width="2" stroke-linecap="round"/>
+            <text x="99" y="458" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="#4D6382">Links, kept handy</text>
+          </g>
+          <g transform="rotate(5 438 151)" filter="url(#cardShadow)">
+            <rect x="375" y="123" width="139" height="57" rx="14" fill="#1B355B"/>
+            <text x="395" y="159" font-family="ui-monospace, monospace" font-size="23" fill="#A8D2FF">&lt;/&gt;</text>
+            <text x="451" y="157" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="#EEF5FF">Code</text>
+          </g>
+          <circle cx="73" cy="115" r="5" fill="#86B4EF"/><circle cx="493" cy="492" r="4" fill="#A5C5EE"/>
+          <path d="M457 68V80M451 74H463M84 378V388M79 383H89" stroke="#A4C4ED" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </figure>
     </section>
 
     <!-- Interactive Demo Sandbox -->
